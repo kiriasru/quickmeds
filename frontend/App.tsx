@@ -1,20 +1,22 @@
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+import { StatusBar } from "expo-status-bar";
+import { SafeAreaView, StyleSheet } from "react-native";
+import RouterApp from "./components/RouterApp";
+import ProviderQuickMeds from "./provider/ProviderQuickMeds";
 
 export default function App() {
   return (
-    <View style={styles.container}>
-      <Text>Open up App.tsx to start working on your app!</Text>
-      <StatusBar style="auto" />
-    </View>
+    <ProviderQuickMeds>
+      <SafeAreaView style={styles.container}>
+        <RouterApp />
+        <StatusBar style="auto" />
+      </SafeAreaView>
+    </ProviderQuickMeds>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "#fff",
   },
 });
