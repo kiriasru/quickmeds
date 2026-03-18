@@ -1,582 +1,530 @@
 import React, { useContext, useEffect, useState } from "react";
 import { contextQuickMeds } from "../context/ContextQuickMeds";
-import { CondicionCronica, CondicionCronicaNueva } from "../modelos/CondicionCronica";
-import { ContactoEmergencia, ContactoEmergenciaNuevo } from "../modelos/ContactoEmergencia";
-import { Dosis, EstadoDosis } from "../modelos/Dosis";
-import { Medicamento, MedicamentoNuevo } from "../modelos/Medicamento";
-import { PantallaApp } from "../modelos/Navegacion";
+import { CondicionCronica } from "../modelos/CondicionCronica";
+import { CondicionCronicaNueva } from "../modelos/CondicionCronicaNueva";
+import { ContactoEmergencia } from "../modelos/ContactoEmergencia";
+import { ContactoEmergenciaNuevo } from "../modelos/ContactoEmergenciaNuevo";
+import { Dosis } from "../modelos/Dosis";
+import { Medicamento } from "../modelos/Medicamento";
+import { MedicamentoActualizar } from "../modelos/MedicamentoActualizar";
+import { MedicamentoNuevo } from "../modelos/MedicamentoNuevo";
 import { Plantilla } from "../modelos/Plantilla";
-import { Recordatorio, RecordatorioNuevo } from "../modelos/Recordatorio";
-import { SesionUsuario, Usuario, UsuarioLogin, UsuarioRegistro } from "../modelos/Usuario";
+import { Recordatorio } from "../modelos/Recordatorio";
+import { RecordatorioNuevo } from "../modelos/RecordatorioNuevo";
+import { SesionUsuario } from "../modelos/SesionUsuario";
+import { Usuario } from "../modelos/Usuario";
+import { UsuarioLogin } from "../modelos/UsuarioLogin";
+import { UsuarioRegistro } from "../modelos/UsuarioRegistro";
+import {
+  borrarCondicion,
+  borrarContacto,
+  borrarMedicamento,
+  borrarRecordatorio,
+  cambiarActivoMedicamento,
+  editarMedicamento,
+  guardarCondicion,
+  guardarContacto,
+  guardarDosis,
+  guardarMedicamento,
+  guardarRecordatorio,
+  iniciarSesionUsuario,
+  registrarUsuario,
+  traerCondiciones,
+  traerContactos,
+  traerDosis,
+  traerMedicamentos,
+  traerPerfil,
+  traerRecordatorios,
+} from "../services/quickMedsAcciones";
 import { pedirPermisosNotificaciones, programarRecordatorioLocal } from "../services/notifications";
 
-const BASE_URL = "http://192.168.0.9:5050";
-
-interface RespuestaApi<T> {
-    status: number;
-    message: string;
-    data?: T;
-    token?: string;
-    user?: T;
-    error?: string;
-}
-
-async function getApi<T>(endpoint: string, token?: string): Promise<RespuestaApi<T>> {
-    const response = await fetch(`${BASE_URL}${endpoint}`, {
-        method: "GET",
-        headers: {
-            "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-    });
-
-    return response.json();
-}
-
-async function postApi<T>(endpoint: string, body: object, token?: string): Promise<RespuestaApi<T>> {
-    const response = await fetch(`${BASE_URL}${endpoint}`, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify(body),
-    });
-
-    return response.json();
-}
-
-async function putApi<T>(endpoint: string, body: object, token?: string): Promise<RespuestaApi<T>> {
-    const response = await fetch(`${BASE_URL}${endpoint}`, {
-        method: "PUT",
-        headers: {
-            "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify(body),
-    });
-
-    return response.json();
-}
-
-async function deleteApi<T>(endpoint: string, token?: string): Promise<RespuestaApi<T>> {
-    const response = await fetch(`${BASE_URL}${endpoint}`, {
-        method: "DELETE",
-        headers: {
-            "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-    });
-
-    return response.json();
-}
-
 export default function ProviderQuickMeds({ children }: Plantilla) {
-    const [cargandoSesion, setCargandoSesion] = useState(false);
-    const [cargando, setCargando] = useState(false);
-    const [mensaje, setMensaje] = useState("");
-    const [error, setError] = useState("");
-    const [sesion, setSesion] = useState<SesionUsuario | null>(null);
-    const [medicamentos, setMedicamentos] = useState<Medicamento[]>([]);
-    const [recordatorios, setRecordatorios] = useState<Recordatorio[]>([]);
-    const [dosis, setDosis] = useState<Dosis[]>([]);
-    const [contactos, setContactos] = useState<ContactoEmergencia[]>([]);
-    const [condiciones, setCondiciones] = useState<CondicionCronica[]>([]);
-    const [pantallaActual, setPantallaActual] = useState<PantallaApp>("HomePublico");
+  const [cargandoSesion, setCargandoSesion] = useState(false);
+  const [cargando, setCargando] = useState(false);
+  const [mensaje, setMensaje] = useState("");
+  const [error, setError] = useState("");
+  const [sesion, setSesion] = useState<SesionUsuario | null>(null);
+  const [medicamentos, setMedicamentos] = useState<Medicamento[]>([]);
+  const [recordatorios, setRecordatorios] = useState<Recordatorio[]>([]);
+  const [dosis, setDosis] = useState<Dosis[]>([]);
+  const [contactos, setContactos] = useState<ContactoEmergencia[]>([]);
+  const [condiciones, setCondiciones] = useState<CondicionCronica[]>([]);
+  const [pantallaActual, setPantallaActual] = useState("HomePublico");
 
-    useEffect(() => {
-        pedirPermisosNotificaciones();
-    }, []);
+  useEffect(() => {
+    pedirPermisosNotificaciones();
+  }, []);
 
-    function cambiarPantalla(pantalla: PantallaApp) {
-        setPantallaActual(pantalla);
-        setError("");
-        setMensaje("");
+  function cambiarPantalla(pantalla: string) {
+    setPantallaActual(pantalla);
+    setError("");
+    setMensaje("");
+  }
+
+  function obtenerToken() {
+    if (sesion) {
+      return sesion.token;
     }
 
-    function obtenerToken() {
-        return sesion?.token || "";
+    return "";
+  }
+
+  function obtenerIdUsuario() {
+    if (sesion && sesion.usuario) {
+      return sesion.usuario.id;
     }
 
-    async function registrar(usuario: UsuarioRegistro) {
-        try {
-            setCargando(true);
-            setError("");
-            const response = await postApi<Usuario>("/registro", usuario);
+    return 0;
+  }
 
-            if (response.status === 201) {
-                setMensaje(response.message || "Usuario registrado.");
-                return true;
-            }
+  function limpiarDatos() {
+    setMedicamentos([]);
+    setRecordatorios([]);
+    setDosis([]);
+    setContactos([]);
+    setCondiciones([]);
+  }
 
-            setError(response.message || "No se pudo registrar.");
-            return false;
-        } catch (_e) {
-            setError("No se pudo conectar con el backend para registrar.");
-            return false;
-        } finally {
-            setCargando(false);
-        }
+  async function registrar(usuario: UsuarioRegistro) {
+    setCargando(true);
+    setError("");
+
+    try {
+      const response = await registrarUsuario(usuario);
+
+      if (response.status === 201) {
+        setMensaje(response.message || "Usuario registrado.");
+        setCargando(false);
+        return true;
+      }
+
+      setError(response.message || "No se pudo registrar.");
+      setCargando(false);
+      return false;
+    } catch (error) {
+      setError("No se pudo conectar con el backend para registrar.");
+      setCargando(false);
+      return false;
+    }
+  }
+
+  async function iniciarSesion(credenciales: UsuarioLogin) {
+    setCargandoSesion(true);
+    setError("");
+
+    try {
+      const response = await iniciarSesionUsuario(credenciales);
+
+      if (response.status === 200 && response.token && response.user) {
+        const sesionNueva: SesionUsuario = {
+          token: response.token,
+          usuario: response.user as Usuario,
+        };
+
+        setSesion(sesionNueva);
+        setMensaje("Sesion iniciada.");
+        setPantallaActual("Dashboard");
+        setCargandoSesion(false);
+        return true;
+      }
+
+      setError(response.message || "Credenciales invalidas.");
+      setCargandoSesion(false);
+      return false;
+    } catch (error) {
+      setError("No se pudo conectar con el backend para iniciar sesion.");
+      setCargandoSesion(false);
+      return false;
+    }
+  }
+
+  async function cerrarSesion() {
+    setSesion(null);
+    limpiarDatos();
+    setPantallaActual("HomePublico");
+    setMensaje("Sesion cerrada.");
+  }
+
+  async function obtenerMedicamentos() {
+    try {
+      const token = obtenerToken();
+      if (!token) {
+        return;
+      }
+
+      setCargando(true);
+      const response = await traerMedicamentos(token);
+      setMedicamentos((response.data as Medicamento[]) || []);
+    } catch (error) {
+      setError("No se pudieron cargar los medicamentos.");
     }
 
-    async function iniciarSesion(credenciales: UsuarioLogin) {
-        try {
-            setCargandoSesion(true);
-            setError("");
-            const response = await postApi<Usuario>("/login", credenciales);
+    setCargando(false);
+  }
 
-            if (response.status !== 200 || !response.token || !response.user) {
-                setError(response.message || "Credenciales invalidas.");
-                return false;
-            }
+  async function agregarMedicamento(medicamento: MedicamentoNuevo) {
+    try {
+      const token = obtenerToken();
+      if (!token) {
+        return false;
+      }
 
-            const nuevaSesion: SesionUsuario = {
-                token: response.token,
-                usuario: response.user,
-            };
+      const response = await guardarMedicamento(token, medicamento);
+      if (response.status === 201) {
+        setMensaje("Medicamento agregado.");
+        await obtenerMedicamentos();
+        return true;
+      }
 
-            setSesion(nuevaSesion);
-            setMensaje("Sesion iniciada.");
-            setPantallaActual("Dashboard");
-            return true;
-        } catch (_e) {
-            setError("No se pudo conectar con el backend para iniciar sesion.");
-            return false;
-        } finally {
-            setCargandoSesion(false);
-        }
+      setError(response.message || "No se pudo agregar.");
+      return false;
+    } catch (error) {
+      setError("No se pudo agregar medicamento.");
+      return false;
     }
+  }
 
-    async function cerrarSesion() {
-        setSesion(null);
-        setMedicamentos([]);
-        setRecordatorios([]);
-        setDosis([]);
-        setContactos([]);
-        setCondiciones([]);
-        setPantallaActual("HomePublico");
-        setMensaje("Sesion cerrada.");
+  async function actualizarMedicamento(id: number, medicamento: MedicamentoActualizar) {
+    try {
+      const token = obtenerToken();
+      if (!token) {
+        return false;
+      }
+
+      const response = await editarMedicamento(token, id, medicamento);
+      if (response.status === 200) {
+        setMensaje("Medicamento actualizado.");
+        await obtenerMedicamentos();
+        return true;
+      }
+
+      setError(response.message || "No se pudo actualizar medicamento.");
+      return false;
+    } catch (error) {
+      setError("No se pudo actualizar medicamento.");
+      return false;
     }
+  }
 
-    async function obtenerMedicamentos() {
-        try {
-            const token = obtenerToken();
-            if (!token) {
-                return;
-            }
+  async function eliminarMedicamento(id: number) {
+    try {
+      const token = obtenerToken();
+      if (!token) {
+        return false;
+      }
 
-            setCargando(true);
-            const response = await getApi<Medicamento[]>("/medicamentos", token);
-            setMedicamentos(response.data || []);
-        } catch (_e) {
-            setError("No se pudieron cargar los medicamentos.");
-        } finally {
-            setCargando(false);
-        }
+      const response = await borrarMedicamento(token, id);
+      if (response.status === 200) {
+        setMensaje("Medicamento eliminado.");
+        await obtenerMedicamentos();
+        return true;
+      }
+
+      setError(response.message || "No se pudo eliminar.");
+      return false;
+    } catch (error) {
+      setError("No se pudo eliminar medicamento.");
+      return false;
     }
+  }
 
-    async function agregarMedicamento(medicamento: MedicamentoNuevo) {
-        try {
-            const token = obtenerToken();
-            if (!token) {
-                return false;
-            }
+  async function cambiarEstadoMedicamento(id: number, activo: boolean) {
+    try {
+      const token = obtenerToken();
+      if (!token) {
+        return false;
+      }
 
-            const response = await postApi<Medicamento>("/medicamentos", medicamento, token);
-            if (response.status === 201) {
-                setMensaje("Medicamento agregado.");
-                await obtenerMedicamentos();
-                return true;
-            }
+      const response = await cambiarActivoMedicamento(token, id, activo);
+      if (response.status === 200) {
+        setMensaje("Estado del tratamiento actualizado.");
+        await obtenerMedicamentos();
+        return true;
+      }
 
-            setError(response.message || "No se pudo agregar.");
-            return false;
-        } catch (_e) {
-            setError("No se pudo agregar medicamento.");
-            return false;
-        }
+      setError(response.message || "No se pudo cambiar estado.");
+      return false;
+    } catch (error) {
+      setError("No se pudo cambiar estado del medicamento.");
+      return false;
     }
+  }
 
-    async function actualizarMedicamento(
-        id: number,
-        medicamento: Omit<MedicamentoNuevo, "id_usuario">
-    ) {
-        try {
-            const token = obtenerToken();
-            if (!token) {
-                return false;
-            }
+  async function obtenerRecordatorios() {
+    try {
+      const token = obtenerToken();
+      if (!token) {
+        return;
+      }
 
-            const response = await putApi<Medicamento>(`/medicamentos/${id}`, medicamento, token);
-            if (response.status === 200) {
-                setMensaje("Medicamento actualizado.");
-                await obtenerMedicamentos();
-                return true;
-            }
-
-            setError(response.message || "No se pudo actualizar medicamento.");
-            return false;
-        } catch (_e) {
-            setError("No se pudo actualizar medicamento.");
-            return false;
-        }
+      const response = await traerRecordatorios(token);
+      setRecordatorios((response.data as Recordatorio[]) || []);
+    } catch (error) {
+      setError("No se pudieron cargar recordatorios.");
     }
+  }
 
-    async function eliminarMedicamento(id: number) {
-        try {
-            const token = obtenerToken();
-            if (!token) {
-                return false;
-            }
+  async function agregarRecordatorio(recordatorio: RecordatorioNuevo) {
+    try {
+      const token = obtenerToken();
+      if (!token) {
+        return false;
+      }
 
-            const response = await deleteApi<null>(`/medicamentos/${id}`, token);
-            if (response.status === 200) {
-                setMensaje("Medicamento eliminado.");
-                await obtenerMedicamentos();
-                return true;
-            }
+      const response = await guardarRecordatorio(token, recordatorio);
+      if (response.status === 201) {
+        setMensaje("Recordatorio agregado.");
+        await programarRecordatorioLocal(
+          recordatorio.hora_recordatorio,
+          "Hora de tomar tu medicamento."
+        );
+        await obtenerRecordatorios();
+        return true;
+      }
 
-            setError(response.message || "No se pudo eliminar.");
-            return false;
-        } catch (_e) {
-            setError("No se pudo eliminar medicamento.");
-            return false;
-        }
+      setError(response.message || "No se pudo agregar recordatorio.");
+      return false;
+    } catch (error) {
+      setError("No se pudo agregar recordatorio.");
+      return false;
     }
+  }
 
-    async function cambiarEstadoMedicamento(id: number, activo: boolean) {
-        try {
-            const token = obtenerToken();
-            if (!token) {
-                return false;
-            }
+  async function eliminarRecordatorio(id: number) {
+    try {
+      const token = obtenerToken();
+      if (!token) {
+        return false;
+      }
 
-            const response = await putApi<Medicamento>(`/medicamentos/${id}/activo`, { activo }, token);
-            if (response.status === 200) {
-                setMensaje("Estado del tratamiento actualizado.");
-                await obtenerMedicamentos();
-                return true;
-            }
+      const response = await borrarRecordatorio(token, id);
+      if (response.status === 200) {
+        setMensaje("Recordatorio eliminado.");
+        await obtenerRecordatorios();
+        return true;
+      }
 
-            setError(response.message || "No se pudo cambiar estado.");
-            return false;
-        } catch (_e) {
-            setError("No se pudo cambiar estado del medicamento.");
-            return false;
-        }
+      setError(response.message || "No se pudo eliminar recordatorio.");
+      return false;
+    } catch (error) {
+      setError("No se pudo eliminar recordatorio.");
+      return false;
     }
+  }
 
-    async function obtenerRecordatorios() {
-        try {
-            const token = obtenerToken();
-            if (!token) {
-                return;
-            }
+  async function obtenerDosis() {
+    try {
+      const token = obtenerToken();
+      if (!token) {
+        return;
+      }
 
-            const response = await getApi<Recordatorio[]>("/recordatorios", token);
-            setRecordatorios(response.data || []);
-        } catch (_e) {
-            setError("No se pudieron cargar recordatorios.");
-        }
+      const response = await traerDosis(token);
+      setDosis((response.data as Dosis[]) || []);
+    } catch (error) {
+      setError("No se pudieron cargar dosis.");
     }
+  }
 
-    async function agregarRecordatorio(recordatorio: RecordatorioNuevo) {
-        try {
-            const token = obtenerToken();
-            if (!token) {
-                return false;
-            }
+  async function registrarDosis(idMedicamento: number, estado: string, fechaHoraProgramada: string) {
+    try {
+      const token = obtenerToken();
+      if (!token) {
+        return false;
+      }
 
-            const response = await postApi<Recordatorio>("/recordatorios", recordatorio, token);
-            if (response.status === 201) {
-                setMensaje("Recordatorio agregado.");
-                await programarRecordatorioLocal(
-                    recordatorio.hora_recordatorio,
-                    "Hora de tomar tu medicamento."
-                );
-                await obtenerRecordatorios();
-                return true;
-            }
+      const response = await guardarDosis(token, idMedicamento, estado, fechaHoraProgramada);
+      if (response.status === 201) {
+        await obtenerDosis();
+        return true;
+      }
 
-            setError(response.message || "No se pudo agregar recordatorio.");
-            return false;
-        } catch (_e) {
-            setError("No se pudo agregar recordatorio.");
-            return false;
-        }
+      setError(response.message || "No se pudo registrar dosis.");
+      return false;
+    } catch (error) {
+      setError("No se pudo registrar dosis.");
+      return false;
     }
+  }
 
-    async function eliminarRecordatorio(id: number) {
-        try {
-            const token = obtenerToken();
-            if (!token) {
-                return false;
-            }
+  async function obtenerPerfil() {
+    try {
+      const token = obtenerToken();
+      const idUsuario = obtenerIdUsuario();
+      if (!token || !idUsuario) {
+        return null;
+      }
 
-            const response = await deleteApi<null>(`/recordatorios/${id}`, token);
-            if (response.status === 200) {
-                setMensaje("Recordatorio eliminado.");
-                await obtenerRecordatorios();
-                return true;
-            }
-
-            setError(response.message || "No se pudo eliminar recordatorio.");
-            return false;
-        } catch (_e) {
-            setError("No se pudo eliminar recordatorio.");
-            return false;
-        }
+      const response = await traerPerfil(token, idUsuario);
+      return (response.data as Usuario) || null;
+    } catch (error) {
+      setError("No se pudo cargar perfil.");
+      return null;
     }
+  }
 
-    async function obtenerDosis() {
-        try {
-            const token = obtenerToken();
-            if (!token) {
-                return;
-            }
+  async function obtenerContactos() {
+    try {
+      const token = obtenerToken();
+      const idUsuario = obtenerIdUsuario();
+      if (!token || !idUsuario) {
+        return;
+      }
 
-            const response = await getApi<Dosis[]>("/dosis", token);
-            setDosis(response.data || []);
-        } catch (_e) {
-            setError("No se pudieron cargar dosis.");
-        }
+      const response = await traerContactos(token);
+      const lista = (response.data as ContactoEmergencia[]) || [];
+      setContactos(lista.filter((item) => item.id_usuario === idUsuario));
+    } catch (error) {
+      setError("No se pudieron cargar contactos.");
     }
+  }
 
-    async function registrarDosis(
-        idMedicamento: number,
-        estado: EstadoDosis,
-        fechaHoraProgramada: string
-    ) {
-        try {
-            const token = obtenerToken();
-            if (!token) {
-                return false;
-            }
+  async function agregarContacto(contacto: ContactoEmergenciaNuevo) {
+    try {
+      const token = obtenerToken();
+      if (!token) {
+        return false;
+      }
 
-            const payload = {
-                id_medicamento: idMedicamento,
-                fecha_hora_programada: fechaHoraProgramada,
-                fecha_hora_tomada: estado === "tomado" ? new Date().toISOString() : null,
-                estado,
-            };
+      const response = await guardarContacto(token, contacto);
+      if (response.status === 201) {
+        setMensaje("Contacto agregado.");
+        await obtenerContactos();
+        return true;
+      }
 
-            const response = await postApi<Dosis>("/dosis", payload, token);
-            if (response.status === 201) {
-                await obtenerDosis();
-                return true;
-            }
-
-            setError(response.message || "No se pudo registrar dosis.");
-            return false;
-        } catch (_e) {
-            setError("No se pudo registrar dosis.");
-            return false;
-        }
+      setError(response.message || "No se pudo agregar contacto.");
+      return false;
+    } catch (error) {
+      setError("No se pudo agregar contacto.");
+      return false;
     }
+  }
 
-    async function actualizarEstadoDosis(idDosis: number, estado: EstadoDosis) {
-        try {
-            const token = obtenerToken();
-            if (!token) {
-                return false;
-            }
+  async function eliminarContacto(id: number) {
+    try {
+      const token = obtenerToken();
+      if (!token) {
+        return false;
+      }
 
-            const payload = {
-                estado,
-                fecha_hora_tomada: estado === "tomado" ? new Date().toISOString() : null,
-            };
+      const response = await borrarContacto(token, id);
+      if (response.status === 200) {
+        setMensaje("Contacto eliminado.");
+        await obtenerContactos();
+        return true;
+      }
 
-            const response = await putApi<Dosis>(`/dosis/${idDosis}/estado`, payload, token);
-            if (response.status === 200) {
-                setMensaje("Estado de dosis actualizado.");
-                await obtenerDosis();
-                return true;
-            }
-
-            setError(response.message || "No se pudo actualizar dosis.");
-            return false;
-        } catch (_e) {
-            setError("No se pudo actualizar estado de dosis.");
-            return false;
-        }
+      setError(response.message || "No se pudo eliminar contacto.");
+      return false;
+    } catch (error) {
+      setError("No se pudo eliminar contacto.");
+      return false;
     }
+  }
 
-    async function obtenerPerfil() {
-        try {
-            const token = obtenerToken();
-            if (!token || !sesion?.usuario?.id) {
-                return null;
-            }
+  async function obtenerCondiciones() {
+    try {
+      const token = obtenerToken();
+      const idUsuario = obtenerIdUsuario();
+      if (!token || !idUsuario) {
+        return;
+      }
 
-            const response = await getApi<Usuario>(`/usuarios/${sesion.usuario.id}`, token);
-            return response.data || null;
-        } catch (_e) {
-            setError("No se pudo cargar perfil.");
-            return null;
-        }
+      const response = await traerCondiciones(token);
+      const lista = (response.data as CondicionCronica[]) || [];
+      setCondiciones(lista.filter((item) => item.id_usuario === idUsuario));
+    } catch (error) {
+      setError("No se pudieron cargar condiciones.");
     }
+  }
 
-    async function obtenerContactos() {
-        try {
-            const token = obtenerToken();
-            if (!token || !sesion?.usuario?.id) {
-                return;
-            }
+  async function agregarCondicion(condicion: CondicionCronicaNueva) {
+    try {
+      const token = obtenerToken();
+      if (!token) {
+        return false;
+      }
 
-            const response = await getApi<ContactoEmergencia[]>("/contactos-emergencia", token);
-            const lista = response.data || [];
-            setContactos(lista.filter((item) => item.id_usuario === sesion.usuario.id));
-        } catch (_e) {
-            setError("No se pudieron cargar contactos.");
-        }
+      const response = await guardarCondicion(token, condicion);
+      if (response.status === 201) {
+        setMensaje("Condicion cronica agregada.");
+        await obtenerCondiciones();
+        return true;
+      }
+
+      setError(response.message || "No se pudo agregar condicion.");
+      return false;
+    } catch (error) {
+      setError("No se pudo agregar condicion.");
+      return false;
     }
+  }
 
-    async function agregarContacto(contacto: ContactoEmergenciaNuevo) {
-        try {
-            const token = obtenerToken();
-            if (!token) {
-                return false;
-            }
+  async function eliminarCondicion(id: number) {
+    try {
+      const token = obtenerToken();
+      if (!token) {
+        return false;
+      }
 
-            const response = await postApi<ContactoEmergencia>("/contactos-emergencia", contacto, token);
-            if (response.status === 201) {
-                setMensaje("Contacto agregado.");
-                await obtenerContactos();
-                return true;
-            }
+      const response = await borrarCondicion(token, id);
+      if (response.status === 200) {
+        setMensaje("Condicion cronica eliminada.");
+        await obtenerCondiciones();
+        return true;
+      }
 
-            setError(response.message || "No se pudo agregar contacto.");
-            return false;
-        } catch (_e) {
-            setError("No se pudo agregar contacto.");
-            return false;
-        }
+      setError(response.message || "No se pudo eliminar condicion.");
+      return false;
+    } catch (error) {
+      setError("No se pudo eliminar condicion.");
+      return false;
     }
+  }
 
-    async function eliminarContacto(id: number) {
-        try {
-            const token = obtenerToken();
-            if (!token) {
-                return false;
-            }
-
-            const response = await deleteApi<null>(`/contactos-emergencia/${id}`, token);
-            if (response.status === 200) {
-                setMensaje("Contacto eliminado.");
-                await obtenerContactos();
-                return true;
-            }
-
-            setError(response.message || "No se pudo eliminar contacto.");
-            return false;
-        } catch (_e) {
-            setError("No se pudo eliminar contacto.");
-            return false;
-        }
-    }
-
-    async function obtenerCondiciones() {
-        try {
-            const token = obtenerToken();
-            if (!token || !sesion?.usuario?.id) {
-                return;
-            }
-
-            const response = await getApi<CondicionCronica[]>("/condiciones-cronicas", token);
-            const lista = response.data || [];
-            setCondiciones(lista.filter((item) => item.id_usuario === sesion.usuario.id));
-        } catch (_e) {
-            setError("No se pudieron cargar condiciones.");
-        }
-    }
-
-    async function agregarCondicion(condicion: CondicionCronicaNueva) {
-        try {
-            const token = obtenerToken();
-            if (!token) {
-                return false;
-            }
-
-            const response = await postApi<CondicionCronica>("/condiciones-cronicas", condicion, token);
-            if (response.status === 201) {
-                setMensaje("Condicion cronica agregada.");
-                await obtenerCondiciones();
-                return true;
-            }
-
-            setError(response.message || "No se pudo agregar condicion.");
-            return false;
-        } catch (_e) {
-            setError("No se pudo agregar condicion.");
-            return false;
-        }
-    }
-
-    async function eliminarCondicion(id: number) {
-        try {
-            const token = obtenerToken();
-            if (!token) {
-                return false;
-            }
-
-            const response = await deleteApi<null>(`/condiciones-cronicas/${id}`, token);
-            if (response.status === 200) {
-                setMensaje("Condicion cronica eliminada.");
-                await obtenerCondiciones();
-                return true;
-            }
-
-            setError(response.message || "No se pudo eliminar condicion.");
-            return false;
-        } catch (_e) {
-            setError("No se pudo eliminar condicion.");
-            return false;
-        }
-    }
-
-    return (
-        <contextQuickMeds.Provider
-            value={{
-                cargandoSesion,
-                cargando,
-                mensaje,
-                error,
-                sesion,
-                medicamentos,
-                recordatorios,
-                dosis,
-                contactos,
-                condiciones,
-                pantallaActual,
-                cambiarPantalla,
-                registrar,
-                iniciarSesion,
-                cerrarSesion,
-                obtenerMedicamentos,
-                agregarMedicamento,
-                actualizarMedicamento,
-                eliminarMedicamento,
-                cambiarEstadoMedicamento,
-                obtenerRecordatorios,
-                agregarRecordatorio,
-                eliminarRecordatorio,
-                obtenerDosis,
-                registrarDosis,
-                actualizarEstadoDosis,
-                obtenerPerfil,
-                obtenerContactos,
-                agregarContacto,
-                eliminarContacto,
-                obtenerCondiciones,
-                agregarCondicion,
-                eliminarCondicion,
-            }}
-        >
-            {children}
-        </contextQuickMeds.Provider>
-    );
+  return (
+    <contextQuickMeds.Provider
+      value={{
+        cargandoSesion,
+        cargando,
+        mensaje,
+        error,
+        sesion,
+        medicamentos,
+        recordatorios,
+        dosis,
+        contactos,
+        condiciones,
+        pantallaActual,
+        cambiarPantalla,
+        registrar,
+        iniciarSesion,
+        cerrarSesion,
+        obtenerMedicamentos,
+        agregarMedicamento,
+        actualizarMedicamento,
+        eliminarMedicamento,
+        cambiarEstadoMedicamento,
+        obtenerRecordatorios,
+        agregarRecordatorio,
+        eliminarRecordatorio,
+        obtenerDosis,
+        registrarDosis,
+        obtenerPerfil,
+        obtenerContactos,
+        agregarContacto,
+        eliminarContacto,
+        obtenerCondiciones,
+        agregarCondicion,
+        eliminarCondicion,
+      }}
+    >
+      {children}
+    </contextQuickMeds.Provider>
+  );
 }
 
 export const useContextQuickMeds = () => {
-    return useContext(contextQuickMeds);
+  return useContext(contextQuickMeds);
 };

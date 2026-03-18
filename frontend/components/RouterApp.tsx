@@ -11,39 +11,39 @@ import Recordatorios from "../page/Recordatorios";
 import Registro from "../page/Registro";
 
 export default function RouterApp() {
-    const { pantallaActual } = useContextQuickMeds();
+  const { pantallaActual } = useContextQuickMeds();
 
-    if (pantallaActual === "Login") {
-        return <Login />;
-    }
+  if (pantallaActual === "Login") {
+    return <Login />;
+  }
 
-    if (pantallaActual === "Registro") {
-        return <Registro />;
-    }
+  if (pantallaActual === "Registro") {
+    return <Registro />;
+  }
 
-    if (pantallaActual === "Dashboard") {
-        return <Dashboard />;
-    }
+  if (pantallaActual === "Dashboard") {
+    return <Dashboard />;
+  }
 
-    if (pantallaActual === "Medicamentos") {
-        return <Medicamentos />;
-    }
+  if (pantallaActual === "Medicamentos") {
+    return <Medicamentos />;
+  }
 
-    if (pantallaActual === "Recordatorios") {
-        return <Recordatorios />;
-    }
+  if (pantallaActual === "Recordatorios") {
+    return <Recordatorios />;
+  }
 
-    if (pantallaActual === "Dosis") {
-        return <Dosis />;
-    }
+  if (pantallaActual === "Dosis") {
+    return <Dosis />;
+  }
 
-    if (pantallaActual === "Historial") {
-        return <Historial />;
-    }
+  if (pantallaActual === "Historial") {
+    return <Historial />;
+  }
 
-    if (pantallaActual === "Perfil") {
-        return <Perfil />;
-    }
+  if (pantallaActual === "Perfil") {
+    return <Perfil />;
+  }
 
-    return <HomePublico />;
+  return <HomePublico />;
 }
